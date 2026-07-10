@@ -1,8 +1,8 @@
 {
   "name": "wiki-graph",
   "displayName": "Wiki Graph",
-  "version": "1.0.0",
-  "description": "See your markdown docs as a living knowledge graph — Obsidian-style force view in one self-contained HTML file, plus agent-readable graph.json. Manual, live (auto-updates as you edit), or scheduled.",
+  "version": "1.0.1",
+  "description": "See your markdown docs as a living knowledge graph \u2014 Obsidian-style force view in one self-contained HTML file, plus agent-readable graph.json. Manual, live (auto-updates as you edit), or scheduled.",
   "author": {
     "name": "galaxyuliana",
     "url": "https://github.com/galaxyuliana"

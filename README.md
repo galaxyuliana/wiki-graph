@@ -51,6 +51,8 @@ python3 ~/tools/wiki-graph/build.py ~/my-wiki --open
 ```
 
 Outputs land in `~/my-wiki/.wiki-graph/` (`wiki-graph.html` + `graph.json`).
+The folder writes its own `.gitignore`, so it never dirties your repo —
+`git add -f .wiki-graph` if you *want* to commit the graph.
 Try it on the bundled demo first:
 
 ```bash
@@ -135,6 +137,18 @@ by folder instead — no frontmatter required.
 ```json
 { "title": "My Wiki", "roots": ["docs"], "ignore": ["vendor", "drafts"] }
 ```
+
+## Vendoring (optional)
+
+Teams that want a version-pinned copy that works with no plugin installed can
+commit the builder into their repo:
+
+```bash
+cp -r ~/tools/wiki-graph/skills/wiki-graph/scripts my-wiki/tools/wiki-graph
+```
+
+The skill prefers `tools/wiki-graph/build.py` when a repo has one, so
+everyone (and every agent) builds with the repo's own pinned version.
 
 ## For agents: graph.json
 

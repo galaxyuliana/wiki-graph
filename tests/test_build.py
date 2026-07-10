@@ -119,6 +119,26 @@ class TestConfigAndCheck(unittest.TestCase):
         g = json.load(open(os.path.join(self.out, "graph.json")))
         self.assertEqual(len(g["broken"]), 2)
 
+    def test_agent_instruction_files_are_excluded(self):
+        self.write("a.md", "hello")
+        self.write("AGENTS.md", "## Knowledge graph\nrebuild after edits")
+        self.write("CLAUDE.md", "project instructions")
+        run_build(self.root, self.out)
+        g = json.load(open(os.path.join(self.out, "graph.json")))
+        self.assertEqual([n["path"] for n in g["nodes"]], ["a.md"])
+
+    def test_default_out_dir_self_gitignores(self):
+        self.write("a.md", "hello")
+        out = os.path.join(self.root, ".wiki-graph")
+        run_build(self.root, out)
+        with open(os.path.join(out, ".gitignore"), encoding="utf-8") as f:
+            self.assertIn("*", f.read())
+
+    def test_custom_out_dir_gets_no_gitignore(self):
+        self.write("a.md", "hello")
+        run_build(self.root, self.out)   # "graph-out", not ".wiki-graph"
+        self.assertFalse(os.path.exists(os.path.join(self.out, ".gitignore")))
+
     def test_ambiguous_wikilink_is_not_an_edge(self):
         self.write("x/dup.md", "one")
         self.write("y/dup.md", "two")

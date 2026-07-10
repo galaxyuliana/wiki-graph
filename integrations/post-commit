@@ -8,7 +8,7 @@
 #
 # Only rebuilds when the commit touched markdown files.
 
-if git diff-tree --no-commit-id --name-only -r HEAD | grep -qiE '\.(md|markdown)$'; then
+if git diff-tree --root --no-commit-id --name-only -r HEAD | grep -qiE '\.(md|markdown)$'; then
   python3 ~/tools/wiki-graph/build.py "$(git rev-parse --show-toplevel)" --quiet 2>/dev/null &
 fi
 exit 0

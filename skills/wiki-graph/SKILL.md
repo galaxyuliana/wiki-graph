@@ -16,13 +16,28 @@ when the skill loads).
 ## Default flow (manual build)
 
 1. `ROOT` = `git rev-parse --show-toplevel` (not a git repo → use the cwd).
-2. Run `python3 "<skill-dir>/scripts/build.py" "$ROOT"` — outputs land in
-   `$ROOT/.wiki-graph/` (override with a second positional arg if the user
-   wants them elsewhere).
+2. Pick the builder:
+   - **Repo vendors its own copy** at `<ROOT>/tools/wiki-graph/build.py`:
+     run that one — teams pin the builder in-repo for reproducibility.
+   - **Otherwise** run the bundled copy:
+     `python3 "<skill-dir>/scripts/build.py" "$ROOT"`.
+   Outputs land in `$ROOT/.wiki-graph/` (override with a second positional
+   arg if the user wants them elsewhere).
 3. Open `wiki-graph.html` from there (`open` on macOS, `xdg-open` on Linux,
    `start` on Windows) and relay the doc/link/orphan counts the script printed.
-4. If `.wiki-graph/` is new in a git repo, suggest adding it to `.gitignore`
-   (one line) — or committing it, if they want the graph shared.
+4. Git stays clean automatically — `.wiki-graph/` writes its own `.gitignore`.
+   If the user wants the graph committed/shared, that's `git add -f .wiki-graph`.
+5. **First build in a repo?** Offer two one-time upgrades (do them only if
+   the user agrees):
+   - Append the knowledge-graph block to the repo's `AGENTS.md` (create the
+     file if missing) so *every* coding agent — Codex, Cursor, Gemini CLI,
+     Copilot, etc. — keeps the graph fresh and reads `graph.json` when asked
+     about the docs. Template: `integrations/AGENTS.md-snippet.md` in this
+     plugin's repo; adapt the builder path to this machine (use the vendored
+     path if the repo has one, else this skill's scripts path).
+   - Vendor the builder into the repo (`cp -r <skill-dir>/scripts
+     <ROOT>/tools/wiki-graph`) if the team wants a version-pinned copy that
+     works without this plugin installed.
 
 ## Live mode (auto-updating)
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.1 — 2026-07-10
+
+- `.wiki-graph/` output dir now writes its own `.gitignore` — generated files
+  never dirty the repo (`git add -f .wiki-graph` to commit them deliberately)
+- Skill: on first build in a repo, offers to add the knowledge-graph block to
+  `AGENTS.md` and to vendor the builder; prefers a repo-vendored
+  `tools/wiki-graph/build.py` when present
+- Agent-instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`) are no
+  longer counted as wiki nodes
+- git post-commit hook: `--root` flag so the very first commit also triggers
+  a build
+
 ## 1.0.0 — 2026-07-10
 
 First public release. 🎉

@@ -4,14 +4,14 @@
     "name": "galaxyuliana"
   },
   "metadata": {
-    "description": "Living knowledge graphs for markdown wikis and docs repos — interactive, self-contained, agent-readable.",
-    "version": "1.0.0"
+    "description": "Living knowledge graphs for markdown wikis and docs repos \u2014 interactive, self-contained, agent-readable.",
+    "version": "1.0.1"
   },
   "plugins": [
     {
       "name": "wiki-graph",
       "source": "./",
-      "description": "See your markdown docs as a living knowledge graph — one self-contained HTML file, auto-updated as you edit, plus agent-readable graph.json."
+      "description": "See your markdown docs as a living knowledge graph \u2014 one self-contained HTML file, auto-updated as you edit, plus agent-readable graph.json."
     }
   ]
 }
