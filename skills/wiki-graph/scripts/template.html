@@ -1,0 +1,934 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge Graph</title>
+<style>
+:root{
+  --surface:#f4f6f7; --vignette:#e7ebee; --panel:#ffffff; --panel-t:rgba(255,255,255,.9);
+  --ink:#22303a; --muted:#5d707f; --line:#d9e0e5; --edge:rgba(93,112,127,.15);
+  --c-map:#D97A0D; --c-know:#0E9E9A; --c-work:#D7263D; --c-note:#7C4DE8;
+  --c-stream:#8291A0; --c-other:#AEB8C0;
+  --accent:#D97A0D; --live:#19A974; --shadow:0 10px 32px rgba(34,48,58,.16);
+}
+@media (prefers-color-scheme: dark){:root{
+  --surface:#11161d; --vignette:#070a0e; --panel:#1b2430; --panel-t:rgba(23,31,41,.88);
+  --ink:#dfe7ec; --muted:#93a3b0; --line:#2b3644; --edge:rgba(147,163,176,.13);
+  --c-map:#CE7212; --c-know:#159B96; --c-work:#DE4B50; --c-note:#9070EE;
+  --c-stream:#5d707f; --c-other:#4a5560;
+  --accent:#E8891F; --live:#2ECC8F; --shadow:0 10px 32px rgba(0,0,0,.5);
+}}
+:root[data-theme="dark"]{
+  --surface:#11161d; --vignette:#070a0e; --panel:#1b2430; --panel-t:rgba(23,31,41,.88);
+  --ink:#dfe7ec; --muted:#93a3b0; --line:#2b3644; --edge:rgba(147,163,176,.13);
+  --c-map:#CE7212; --c-know:#159B96; --c-work:#DE4B50; --c-note:#9070EE;
+  --c-stream:#5d707f; --c-other:#4a5560;
+  --accent:#E8891F; --live:#2ECC8F; --shadow:0 10px 32px rgba(0,0,0,.5);
+}
+:root[data-theme="light"]{
+  --surface:#f4f6f7; --vignette:#e7ebee; --panel:#ffffff; --panel-t:rgba(255,255,255,.9);
+  --ink:#22303a; --muted:#5d707f; --line:#d9e0e5; --edge:rgba(93,112,127,.15);
+  --c-map:#D97A0D; --c-know:#0E9E9A; --c-work:#D7263D; --c-note:#7C4DE8;
+  --c-stream:#8291A0; --c-other:#AEB8C0;
+  --accent:#D97A0D; --live:#19A974; --shadow:0 10px 32px rgba(34,48,58,.16);
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{height:100%}
+body{margin:0;color:var(--ink);overflow:hidden;
+  background:radial-gradient(ellipse 120% 90% at 50% 38%, var(--surface) 0%, var(--vignette) 100%);
+  font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif}
+#stage{position:fixed;inset:0;cursor:grab;touch-action:none}
+#stage.dragging{cursor:grabbing}
+
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:baseline;
+  gap:16px;padding:14px 20px;pointer-events:none}
+header h1{font-size:15px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44vw}
+header h1 em{font-style:normal;color:var(--accent)}
+#tagline{font-size:12.5px;color:var(--muted)}
+#live{align-self:center;display:inline-flex;align-items:center;gap:6px;font-size:11px;
+  font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--live);
+  border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--panel-t);
+  transition:opacity .3s}
+#live .pulse{width:7px;height:7px;border-radius:50%;background:var(--live);
+  animation:pulse 2s ease-in-out infinite}
+#live.stale{color:var(--muted);opacity:.55}
+#live.stale .pulse{background:var(--muted);animation:none}
+#live.flash{box-shadow:0 0 0 3px color-mix(in srgb, var(--live) 30%, transparent)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+#stats{margin-left:auto;font-size:12.5px;color:var(--muted);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+#stats b{color:var(--ink);font-weight:600}
+#stats .broken{color:var(--c-work);cursor:help}
+#theme-btn{pointer-events:auto;align-self:center;width:30px;height:30px;flex:none;
+  display:grid;place-items:center;font-size:14px;line-height:1;color:var(--muted);
+  background:var(--panel-t);border:1px solid var(--line);border-radius:50%;
+  cursor:pointer;transition:color .15s,border-color .15s}
+#theme-btn:hover{color:var(--ink);border-color:var(--accent)}
+#theme-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.card{position:fixed;z-index:6;background:var(--panel-t);backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+#controls{left:16px;top:56px;width:234px;padding:13px 15px}
+.sec{font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--muted);margin:12px 0 6px}
+.sec:first-child{margin-top:0}
+#q{width:100%;padding:7px 10px;font:inherit;font-size:13px;color:var(--ink);
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;outline:none;
+  transition:border-color .15s}
+#q:focus{border-color:var(--accent)}
+#hits{margin:4px 0 0;padding:0;list-style:none;max-height:150px;overflow:auto}
+#hits li{display:flex;align-items:center;gap:6px;padding:4px 6px;font-size:12px;
+  border-radius:6px;cursor:pointer;white-space:nowrap;overflow:hidden}
+#hits li span{overflow:hidden;text-overflow:ellipsis}
+#hits li:hover,#hits li:focus{background:var(--surface);outline:none}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.seg{display:flex;gap:4px}
+.seg button{flex:1;padding:5px 0;font:inherit;font-size:12px;color:var(--muted);
+  background:var(--surface);border:1px solid var(--line);border-radius:7px;cursor:pointer;
+  transition:all .15s}
+.seg button[aria-pressed="true"]{color:#fff;background:var(--accent);border-color:var(--accent)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+label.tog{display:flex;align-items:center;gap:7px;font-size:12.5px;margin:5px 0;cursor:pointer}
+label.tog input{accent-color:var(--accent)}
+#legend{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+#legend .li{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink);
+  padding:3px 6px;margin:0 -6px;border-radius:6px;cursor:pointer;user-select:none}
+#legend .li:hover{background:var(--surface)}
+#legend .li:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#legend .li.off{opacity:.42}
+#legend .li.off .lbl{text-decoration:line-through}
+#legend .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#legend .n{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+#legend-hint{font-size:10.5px;color:var(--muted);margin-top:6px}
+
+#detail{right:16px;top:56px;width:300px;max-height:calc(100% - 116px);overflow:auto;
+  padding:14px 16px 16px;display:none;border-top:3px solid var(--accent)}
+#detail.open{display:block}
+#detail h2{font-size:14.5px;margin:0 24px 4px 0;line-height:1.35;text-wrap:balance}
+#detail .path{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;
+  color:var(--muted);word-break:break-all;margin-bottom:10px}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.chip{font-size:10.5px;font-weight:600;letter-spacing:.05em;padding:2px 9px;
+  border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.chip.type{color:#fff;border:none}
+#detail h3{font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--muted);margin:13px 0 5px}
+#detail ul{margin:0;padding:0;list-style:none}
+#detail ul li{display:flex;align-items:center;gap:7px;font-size:12px;padding:3px 6px;
+  margin:0 -6px;border-radius:6px;cursor:pointer;white-space:nowrap;overflow:hidden}
+#detail ul li span{overflow:hidden;text-overflow:ellipsis}
+#detail ul li:hover{background:var(--surface)}
+#detail .more{color:var(--muted);cursor:default}
+#detail .more:hover{background:none}
+#detail .close{position:absolute;top:9px;right:10px;border:none;background:none;
+  color:var(--muted);font-size:15px;cursor:pointer;padding:3px 7px;border-radius:6px}
+#detail .close:hover{color:var(--ink);background:var(--surface)}
+
+#timeline{left:50%;transform:translateX(-50%);bottom:52px;z-index:6;display:flex;
+  align-items:center;gap:10px;padding:8px 14px}
+#tl-play{width:30px;height:30px;flex:none;display:grid;place-items:center;font-size:12px;
+  color:#fff;background:var(--accent);border:none;border-radius:50%;cursor:pointer}
+#tl-play:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#tl-range{-webkit-appearance:none;appearance:none;width:min(38vw,340px);height:3px;
+  background:var(--line);border-radius:2px;outline:none;cursor:pointer}
+#tl-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:13px;height:13px;
+  border-radius:50%;background:var(--accent);border:2px solid var(--panel);
+  box-shadow:0 1px 4px rgba(0,0,0,.3)}
+#tl-range::-moz-range-thumb{width:11px;height:11px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--panel)}
+#tl-label{font-size:11.5px;font-weight:600;color:var(--muted);min-width:88px;
+  text-align:left;font-variant-numeric:tabular-nums;white-space:nowrap}
+#hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:5;
+  font-size:11.5px;color:var(--muted);background:var(--panel-t);backdrop-filter:blur(8px);
+  border:1px solid var(--line);border-radius:999px;padding:5px 16px;pointer-events:none;
+  white-space:nowrap;transition:opacity .8s}
+#hint.fade{opacity:0}
+#tip{position:fixed;z-index:8;pointer-events:none;display:none;background:var(--panel);
+  border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);
+  padding:7px 11px;font-size:12px;max-width:280px}
+#tip .t{font-weight:600;line-height:1.3}
+#tip .m{color:var(--muted);font-size:11px;margin-top:2px}
+
+@media (max-width:720px){ #controls{width:196px} #detail{width:256px} #tagline{display:none} }
+@media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+</style>
+
+<canvas id="stage" aria-label="Interactive knowledge graph of the wiki. Use the search box to find and inspect documents."></canvas>
+
+<header>
+  <h1 id="h-title">Knowledge Graph</h1>
+  <div id="tagline">every dot is a markdown file · every line is a real cross-reference</div>
+  <span id="live" hidden><span class="pulse"></span>live</span>
+  <div id="stats"></div>
+  <button id="theme-btn" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
+</header>
+
+<div class="card" id="controls">
+  <div class="sec">Find a doc</div>
+  <input id="q" type="search" placeholder="search title, path, #tag…" aria-label="Search documents">
+  <ul id="hits"></ul>
+  <div class="sec">Color by</div>
+  <div class="seg" role="group" aria-label="Color mode">
+    <button data-mode="type" aria-pressed="false">Type</button>
+    <button data-mode="folder" aria-pressed="false">Folder</button>
+    <button data-mode="status" aria-pressed="false">Status</button>
+  </div>
+  <div class="sec">Show</div>
+  <label class="tog" id="row-stream"><input type="checkbox" id="f-stream" checked> logs &amp; meeting notes</label>
+  <label class="tog" id="row-arch"><input type="checkbox" id="f-arch" checked> archived docs</label>
+  <label class="tog" id="row-orph"><input type="checkbox" id="f-orph" checked> unlinked docs</label>
+  <div class="sec">Legend</div>
+  <div id="legend"></div>
+  <div id="legend-hint">click a legend row to hide that group</div>
+</div>
+
+<aside class="card" id="detail" aria-live="polite">
+  <button class="close" aria-label="Close details">✕</button>
+  <h2 id="d-title"></h2>
+  <div class="path" id="d-path"></div>
+  <div class="chips" id="d-chips"></div>
+  <h3 id="d-out-h">Links to</h3><ul id="d-out"></ul>
+  <h3 id="d-in-h">Linked from</h3><ul id="d-in"></ul>
+</aside>
+
+<div class="card" id="timeline" hidden>
+  <button id="tl-play" aria-label="Replay how the wiki grew" title="Replay how the wiki grew">▶</button>
+  <input id="tl-range" type="range" aria-label="Timeline position">
+  <span id="tl-label"></span>
+</div>
+<div id="hint">drag to pan · scroll to zoom · click a node to inspect · press / to search</div>
+<div id="tip"><div class="t"></div><div class="m"></div></div>
+
+<script id="graph-data" type="application/json">__DATA__</script>
+<script>
+"use strict";
+const RAW = JSON.parse(document.getElementById("graph-data").textContent);
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = id => document.getElementById(id);
+
+/* ---------- model ---------- */
+/* Semantic type groups: a generic vocabulary. Unknown types land in "other";
+   repos without frontmatter fall back to folder colors (see boot). */
+const TYPE_GROUP = t => (
+  t === "index" ? "map" :
+  ["concept","catalog","convention","reference","runbook","guide","howto",
+   "tutorial","spec","glossary"].includes(t) ? "know" :
+  ["investigation","analysis","design-spec","plan","finding-log","status",
+   "decision","proposal","rfc","adr"].includes(t) ? "work" :
+  ["note","idea","draft"].includes(t) ? "note" :
+  ["changelog","meeting-note","journal","log","daily","standup"].includes(t) ? "stream" :
+  "other");
+
+const DAY = 86400e3;
+const META = { g:"", title:"", broken:[] };
+let nodes = [], edges = [], adj = [];
+let DATED = [], TMIN = 0, TMAX = 0;
+let timeCursor = Infinity;               // Infinity = present day (no time filter)
+let alpha = 1, dirty = true;
+let visNodes = [], visEdges = [];        // rebuilt on filter change, not per frame
+let hovered = null, selected = null, neighborhood = null;
+
+function computeClusters(){
+  // if one top-level folder dominates the repo, cluster by its subfolders
+  const ac = {};
+  nodes.forEach(n => ac[n.area] = (ac[n.area] || 0) + 1);
+  const dom = Object.keys(ac).sort((a,b) => ac[b]-ac[a])[0];
+  const domShare = dom ? ac[dom]/Math.max(nodes.length,1) : 0;
+  nodes.forEach(n =>
+    n.cluster = (domShare > .55 && n.area === dom && n.sub) ? n.sub : n.area);
+}
+
+/* ---------- color modes (rebuilt from the actual data) ---------- */
+const MODES = {};
+let mode = "type";
+const hiddenGroups = new Set();          // "mode:key" entries toggled off via the legend
+
+function discreteMode(keyFn, preferred, slotMap){
+  const counts = {};
+  nodes.forEach(n => { const k = keyFn(n); counts[k] = (counts[k] || 0) + 1; });
+  let keys = Object.keys(counts).sort((a,b) => counts[b]-counts[a] || a.localeCompare(b));
+  if (preferred) keys.sort((a,b) => {
+    const ia = preferred.indexOf(a), ib = preferred.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || counts[b]-counts[a];
+  });
+  const main = keys.slice(0, 5), rest = keys.slice(5);
+  const order = rest.length ? [...main, "~"] : main;
+  const label = {}, color = {};
+  const pool = ["know","work","map","note","stream"];
+  order.forEach(k => {
+    label[k] = k === "~" ? "other" : k.replace(/[-_]/g, " ");
+    let slot = k === "~" ? "other" : (slotMap && slotMap[k]) || pool[0] || "other";
+    const i = pool.indexOf(slot);
+    if (i >= 0) pool.splice(i, 1);
+    color[k] = slot;
+  });
+  const mainSet = new Set(main);
+  return { key: n => mainSet.has(keyFn(n)) ? keyFn(n) : "~", order, label, color };
+}
+
+function rebuildModes(){
+  const gcount = {};
+  nodes.forEach(n => gcount[n.grp] = (gcount[n.grp] || 0) + 1);
+  MODES.type = {
+    key: n => n.grp,
+    order: ["map","know","work","note","stream","other"].filter(k => gcount[k]),
+    label: { map:"maps & indexes", know:"durable knowledge", work:"working docs",
+             note:"notes", stream:"logs & meetings", other:"untyped / other" },
+    color: { map:"map", know:"know", work:"work", note:"note", stream:"stream", other:"other" }
+  };
+  MODES.folder = discreteMode(n => n.area === "(root)" ? "repo root" : n.area, null, null);
+  MODES.status = discreteMode(n => n.status, ["living","draft","frozen","archived"],
+    { living:"know", draft:"map", frozen:"note", archived:"other" });
+}
+const nodeColor = n => T.pal[MODES[mode].color[MODES[mode].key(n)]];
+
+/* ---------- graph (re)build: boot and live updates share this ---------- */
+function applyGraph(g, initial){
+  META.g = g.generated || "";
+  META.title = g.title || g.root || "";
+  META.broken = g.broken || [];
+  setTitle();
+  const old = new Map(nodes.map(n => [n.path, n]));
+  const now = performance.now();
+  hovered = null;
+  nodes = (g.nodes || []).map((r, i) => {
+    let n = old.get(r.path);
+    const fresh = !n;
+    if (fresh) n = { x:NaN, y:NaN, vx:0, vy:0, on:true, fixed:false, popAt:0 };
+    n.i = i; n.path = r.path;
+    n.title = String(r.title || r.path).slice(0, 60);
+    n.type = (r.type || "untyped").toLowerCase();
+    n.status = (r.status || "living").toLowerCase();
+    n.area = r.area || "(root)"; n.sub = r.sub || "";
+    n.tags = (r.tags || []).join(" ").toLowerCase();
+    n.din = r.in || 0; n.dout = r.out || 0; n.born = r.born || "";
+    n.grp = TYPE_GROUP(n.type);
+    n.deg = n.din + n.dout;
+    n.r = 2.6 + Math.sqrt(n.din) * 2.1;
+    n.bornD = n.born ? Math.floor(Date.parse(n.born)/DAY) : -Infinity;
+    if (fresh && !initial) n.popAt = now;
+    return n;
+  });
+  const byPath = new Map(nodes.map(n => [n.path, n]));
+  edges = (g.edges || []).map(([s, t]) => ({ s: byPath.get(s), t: byPath.get(t) }))
+                         .filter(e => e.s && e.t);
+  adj = nodes.map(() => new Set());
+  edges.forEach(e => { adj[e.s.i].add(e.t.i); adj[e.t.i].add(e.s.i); });
+  computeClusters();
+  if (!initial){
+    // place new nodes near an existing neighbor so they visibly join the web
+    for (const n of nodes){
+      if (!Number.isNaN(n.x)) continue;
+      const nb = [...adj[n.i]].map(i => nodes[i]).find(m => !Number.isNaN(m.x));
+      const a = Math.random()*Math.PI*2, d = nb ? 26+Math.random()*30 : 60+Math.random()*120;
+      n.x = (nb ? nb.x : 0) + Math.cos(a)*d;
+      n.y = (nb ? nb.y : 0) + Math.sin(a)*d;
+    }
+  }
+  rebuildModes();
+  setupTimeline();
+  if (selected){
+    const s2 = byPath.get(selected.path);
+    if (s2) select(s2); else select(null);
+  }
+  if (!initial){
+    alpha = Math.max(alpha, 0.5);
+    computeVisibility(true);
+    refreshFilterRows(); legend(); stats();
+  }
+}
+
+function setTitle(){
+  const h = $("h-title");
+  h.textContent = "";
+  if (META.title){
+    h.append(META.title + " ");
+    const em = document.createElement("em");
+    em.textContent = "·";
+    h.append(em, " ");
+  }
+  h.append("Knowledge Graph");
+  document.title = (META.title ? META.title + " — " : "") + "Knowledge Graph";
+}
+
+/* ---------- theme cache: read CSS tokens ONCE per theme change ---------- */
+const cssVar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const T = {};           // T.pal, T.surface, T.ink, T.muted, T.edge
+const sprites = {};     // glow sprite cache, rebuilt per theme
+function readTheme(){
+  T.pal = { map:cssVar("--c-map"), know:cssVar("--c-know"), work:cssVar("--c-work"),
+            note:cssVar("--c-note"), stream:cssVar("--c-stream"), other:cssVar("--c-other") };
+  T.surface = cssVar("--surface"); T.ink = cssVar("--ink");
+  T.muted = cssVar("--muted"); T.edge = cssVar("--edge");
+  for (const k in sprites) delete sprites[k];
+}
+function glowSprite(color){    // pre-rendered radial glow, drawn per node via drawImage
+  if (sprites[color]) return sprites[color];
+  const S = 128, c = document.createElement("canvas");
+  c.width = c.height = S;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(S/2, S/2, S*0.06, S/2, S/2, S/2);
+  grad.addColorStop(0, color + "59");   // ~35% alpha at core
+  grad.addColorStop(0.5, color + "1f");
+  grad.addColorStop(1, color + "00");
+  g.fillStyle = grad; g.fillRect(0, 0, S, S);
+  return sprites[color] = c;
+}
+
+/* ---------- layout: seed by cluster, then force sim ---------- */
+const W = () => innerWidth, H = () => innerHeight;
+function seed(){
+  const groups = {};
+  nodes.forEach(n => (groups[n.cluster] = groups[n.cluster] || []).push(n));
+  const ks = Object.keys(groups);
+  ks.forEach((k, gi) => {
+    const a = gi/ks.length * Math.PI*2, R = Math.min(W(), H())*0.34;
+    const cx0 = Math.cos(a)*R, cy0 = Math.sin(a)*R;
+    groups[k].forEach(n => {
+      const t = Math.random()*Math.PI*2, d = Math.random()*90;
+      n.x = cx0 + Math.cos(t)*d; n.y = cy0 + Math.sin(t)*d;
+    });
+  });
+}
+
+function tick(){
+  const rep = 900, spring = 0.035, rest = 52, cg = 0.012;
+  const N = visNodes;
+  // repulsion — O(n²) over visible nodes; ~400 nodes ≈ 85k pair ops/tick, fine
+  for (let i = 0; i < N.length; i++){
+    const a = N[i];
+    for (let j = i+1; j < N.length; j++){
+      const b = N[j];
+      let dx = a.x-b.x, dy = a.y-b.y, d2 = dx*dx + dy*dy;
+      if (d2 > 32000) continue;
+      if (d2 < 1){ dx = Math.random()-.5; dy = Math.random()-.5; d2 = 1; }
+      const f = rep/d2 * alpha, fx = dx*f, fy = dy*f;
+      a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+    }
+  }
+  for (const e of visEdges){
+    const dx = e.t.x-e.s.x, dy = e.t.y-e.s.y;
+    const d = Math.sqrt(dx*dx + dy*dy) || 1;
+    const f = (d-rest)*spring*alpha/d;
+    e.s.vx += dx*f; e.s.vy += dy*f; e.t.vx -= dx*f; e.t.vy -= dy*f;
+  }
+  for (const n of N){
+    n.vx -= n.x*cg*alpha; n.vy -= n.y*cg*alpha;
+    if (n.fixed){ n.vx = 0; n.vy = 0; continue; }
+    n.vx *= 0.82; n.vy *= 0.82;
+    n.x += n.vx; n.y += n.vy;
+  }
+  alpha = Math.max(alpha*0.994, 0.02);
+  dirty = true;
+}
+
+/* ---------- rendering (dirty-flag: draws only when something changed) ---------- */
+const cv = document.getElementById("stage"), cx = cv.getContext("2d");
+let view = {x:0, y:0, k:1}, dpr = 1;
+function resize(){
+  dpr = Math.min(devicePixelRatio || 1, 2);
+  cv.width = W()*dpr; cv.height = H()*dpr;
+  cv.style.width = W()+"px"; cv.style.height = H()+"px";
+  dirty = true;
+}
+addEventListener("resize", resize);
+
+let bornAt = performance.now();          // entrance fade
+const FONT = '"Avenir Next","Segoe UI",system-ui,sans-serif';
+
+function draw(now){
+  const fadeIn = REDUCED ? 1 : Math.min(1, (now - bornAt)/700);
+  if (fadeIn < 1) dirty = true;
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cx.clearRect(0, 0, W(), H());
+  cx.translate(W()/2 + view.x, H()/2 + view.y);
+  cx.scale(view.k, view.k);
+
+  const sel = neighborhood;
+  const hovSet = hovered && !sel ? adj[hovered.i] : null;
+
+  /* cluster labels — structural landmarks behind everything */
+  if (!sel && view.k < 2.4){
+    const cents = {};
+    for (const n of visNodes){
+      const c = cents[n.cluster] || (cents[n.cluster] = {x:0, y:0, m:0});
+      c.x += n.x; c.y += n.y; c.m++;
+    }
+    cx.textAlign = "center";
+    cx.font = `700 ${26/Math.sqrt(view.k)}px ${FONT}`;
+    cx.fillStyle = T.muted;
+    for (const k in cents){
+      const c = cents[k];
+      if (c.m < 6) continue;
+      cx.globalAlpha = fadeIn * 0.16 * Math.min(1, 2.4 - view.k);
+      cx.fillText(k.replace(/-/g, " ").toUpperCase(), c.x/c.m, c.y/c.m);
+    }
+  }
+
+  /* edges — organic curves, one batched base pass + emphasis over small subsets */
+  const curve = e => {
+    const mx = (e.s.x + e.t.x)/2, my = (e.s.y + e.t.y)/2;
+    const dx = e.t.x - e.s.x, dy = e.t.y - e.s.y;
+    const d = Math.sqrt(dx*dx + dy*dy) || 1;
+    const bow = Math.min(16, d*0.09);
+    cx.moveTo(e.s.x, e.s.y);
+    cx.quadraticCurveTo(mx + dy/d*bow, my - dx/d*bow, e.t.x, e.t.y);
+  };
+  cx.lineWidth = 1/view.k;
+  cx.strokeStyle = T.edge;
+  cx.globalAlpha = fadeIn * (sel ? 0.22 : 1);
+  cx.beginPath();
+  for (const e of visEdges) curve(e);
+  cx.stroke();
+  const focus = sel ? selected : hovered;
+  if (focus){
+    cx.strokeStyle = nodeColor(focus);
+    cx.globalAlpha = fadeIn * (sel ? 0.8 : 0.55);
+    cx.lineWidth = (sel ? 1.6 : 1.4)/view.k;
+    cx.beginPath();
+    for (const e of visEdges) if (e.s === focus || e.t === focus) curve(e);
+    cx.stroke();
+  }
+
+  /* nodes: breathing glow on hubs, crisp vector core + surface ring, birth flash */
+  for (const n of visNodes){
+    const dim = sel ? !sel.has(n.i) : false;
+    const col = nodeColor(n);
+    cx.globalAlpha = fadeIn * (dim ? 0.12 : 1);
+    if (!dim && n.din >= 2){
+      const g = glowSprite(col);
+      const breath = (!REDUCED && n.din >= 6) ? 1 + 0.1*Math.sin(now/1100 + n.i*1.7) : 1;
+      const gr = n.r*3.2*breath;
+      cx.drawImage(g, n.x-gr, n.y-gr, gr*2, gr*2);
+    }
+    cx.beginPath(); cx.arc(n.x, n.y, n.r, 0, 7);
+    cx.fillStyle = col; cx.fill();
+    cx.lineWidth = 1.4/view.k; cx.strokeStyle = T.surface; cx.stroke();
+    if (n.popAt){                                // birth flash (replay & live updates)
+      const p = (now - n.popAt)/600;
+      if (p < 1){
+        cx.beginPath(); cx.arc(n.x, n.y, n.r + p*16/view.k, 0, 7);
+        cx.globalAlpha = fadeIn * (1-p);
+        cx.lineWidth = 1.6/view.k; cx.strokeStyle = col; cx.stroke();
+        cx.globalAlpha = fadeIn * (dim ? 0.12 : 1);
+        dirty = true;
+      } else n.popAt = 0;
+    }
+    if (n === selected || n === hovered){
+      cx.beginPath(); cx.arc(n.x, n.y, n.r + 3.2/view.k, 0, 7);
+      cx.lineWidth = 2/view.k; cx.strokeStyle = col; cx.stroke();
+    }
+  }
+
+  /* labels: hubs by zoom level, scaled to this wiki's actual hub size;
+     hover/selection and their neighbors always */
+  let maxIn = 0;
+  for (const n of visNodes) if (n.din > maxIn) maxIn = n.din;
+  const labelMin = view.k > 2.2 ? 2 :
+    view.k > 1.2 ? Math.min(6, Math.max(2, Math.ceil(maxIn*0.5)))
+                 : Math.min(14, Math.max(3, Math.ceil(maxIn*0.8)));
+  cx.font = `600 ${11/view.k}px ${FONT}`;
+  cx.textAlign = "center";
+  cx.globalAlpha = fadeIn;
+  for (const n of visNodes){
+    const show = n === hovered || n === selected ||
+      (sel ? sel.has(n.i) && n.din >= 1
+           : (hovSet && hovSet.has(n.i)) || n.din >= labelMin);
+    if (!show || (sel && !sel.has(n.i))) continue;
+    const y = n.y - n.r - 5/view.k;
+    cx.lineWidth = 3/view.k; cx.strokeStyle = T.surface;
+    cx.strokeText(n.title, n.x, y);
+    cx.fillStyle = T.ink; cx.fillText(n.title, n.x, y);
+  }
+}
+
+/* ---------- interaction ---------- */
+function toWorld(px, py){ return [(px - W()/2 - view.x)/view.k, (py - H()/2 - view.y)/view.k]; }
+function pick(px, py){
+  const [wx, wy] = toWorld(px, py);
+  let best = null, bd = 12/view.k + 4;
+  for (const n of visNodes){
+    const d = Math.hypot(n.x-wx, n.y-wy);
+    if (d < n.r + 6/view.k && d < bd){ best = n; bd = d; }
+  }
+  return best;
+}
+const tip = $("tip");
+const hint = $("hint");
+let drag = null, moved = false, flight = null;
+function stopFlight(){ flight = null; }
+
+cv.addEventListener("pointerdown", e => {
+  stopFlight();
+  cv.setPointerCapture(e.pointerId);
+  const n = pick(e.clientX, e.clientY);
+  drag = { n, sx:e.clientX, sy:e.clientY, vx:view.x, vy:view.y };
+  moved = false;
+  if (n) n.fixed = true;
+  cv.classList.add("dragging");
+  hint.classList.add("fade");
+});
+cv.addEventListener("pointermove", e => {
+  if (drag){
+    const dx = e.clientX-drag.sx, dy = e.clientY-drag.sy;
+    if (Math.abs(dx)+Math.abs(dy) > 3) moved = true;
+    if (drag.n){
+      const [wx, wy] = toWorld(e.clientX, e.clientY);
+      drag.n.x = wx; drag.n.y = wy;
+      alpha = Math.max(alpha, 0.3);
+    } else { view.x = drag.vx + dx; view.y = drag.vy + dy; }
+    tip.style.display = "none";
+    dirty = true;
+    return;
+  }
+  const n = pick(e.clientX, e.clientY);
+  if (n !== hovered){ hovered = n; dirty = true; }
+  cv.style.cursor = n ? "pointer" : "grab";
+  if (n){
+    tip.style.display = "block";
+    tip.querySelector(".t").textContent = n.title;
+    const tags = n.tags ? " · " + n.tags.split(" ").slice(0, 4).map(t => "#"+t).join(" ") : "";
+    tip.querySelector(".m").textContent =
+      `${n.type} · ${n.status} · ${n.din} inbound · ${n.dout} outbound${tags}`;
+    tip.style.left = Math.min(e.clientX + 14, W()-300) + "px";
+    tip.style.top  = (e.clientY + 14) + "px";
+  } else tip.style.display = "none";
+});
+cv.addEventListener("pointerup", () => {
+  cv.classList.remove("dragging");
+  if (drag){
+    if (drag.n) drag.n.fixed = false;
+    if (!moved) select(drag.n);
+    drag = null; dirty = true;
+  }
+});
+cv.addEventListener("pointerleave", () => {
+  hovered = null; tip.style.display = "none"; dirty = true;
+});
+cv.addEventListener("wheel", e => {
+  e.preventDefault();
+  stopFlight();
+  const f = Math.exp(-e.deltaY * 0.0015);
+  const k2 = Math.min(Math.max(view.k * f, 0.15), 8);
+  const [wx, wy] = toWorld(e.clientX, e.clientY);
+  view.x = e.clientX - W()/2 - wx*k2;
+  view.y = e.clientY - H()/2 - wy*k2;
+  view.k = k2;
+  dirty = true;
+  hint.classList.add("fade");
+}, {passive:false});
+
+/* eased camera flight */
+function flyTo(n){
+  const k2 = Math.max(view.k, 1.8);
+  const to = { x:-n.x*k2, y:-n.y*k2, k:k2 };
+  if (REDUCED){ view = to; dirty = true; return; }
+  flight = { from:{...view}, to, t0:performance.now(), dur:650 };
+}
+function stepFlight(now){
+  if (!flight) return;
+  const p = Math.min(1, (now - flight.t0)/flight.dur);
+  const e = 1 - Math.pow(1-p, 3);                       // cubic ease-out
+  view.x = flight.from.x + (flight.to.x - flight.from.x)*e;
+  view.y = flight.from.y + (flight.to.y - flight.from.y)*e;
+  view.k = flight.from.k + (flight.to.k - flight.from.k)*e;
+  dirty = true;
+  if (p >= 1) flight = null;
+}
+
+/* ---------- selection & detail panel ---------- */
+function select(n){
+  selected = n; dirty = true;
+  if (!n){ neighborhood = null; $("detail").classList.remove("open"); return; }
+  neighborhood = new Set([n.i, ...adj[n.i]]);
+  const col = nodeColor(n);
+  $("detail").style.borderTopColor = col;
+  $("d-title").textContent = n.title;
+  $("d-path").textContent = n.path;
+  const chips = $("d-chips"); chips.innerHTML = "";
+  const mk = (txt, cls, bg) => { const s = document.createElement("span");
+    s.className = "chip " + (cls || ""); s.textContent = txt;
+    if (bg) s.style.background = bg; chips.appendChild(s); };
+  mk(n.type, "type", col); mk(n.status); mk(n.area + (n.sub ? " / " + n.sub : ""));
+  if (n.tags) n.tags.split(" ").slice(0, 6).forEach(t => mk("#" + t));
+  const outs = edges.filter(e => e.s === n).map(e => e.t);
+  const ins  = edges.filter(e => e.t === n).map(e => e.s);
+  const fill = (ul, list) => { ul.innerHTML = "";
+    list.slice(0, 14).forEach(m => {
+      const li = document.createElement("li");
+      const d = document.createElement("span"); d.className = "dot";
+      d.style.background = nodeColor(m);
+      const s = document.createElement("span"); s.textContent = m.title;
+      li.append(d, s); li.title = m.path; li.tabIndex = 0;
+      const go = () => { select(m); flyTo(m); };
+      li.addEventListener("click", go);
+      li.addEventListener("keydown", ev => { if (ev.key === "Enter") go(); });
+      ul.appendChild(li); });
+    if (list.length > 14){ const li = document.createElement("li");
+      li.className = "more"; li.textContent = `… ${list.length - 14} more`; ul.appendChild(li); } };
+  $("d-out-h").textContent = `Links to (${outs.length})`; fill($("d-out"), outs);
+  $("d-in-h").textContent  = `Linked from (${ins.length})`; fill($("d-in"), ins);
+  $("detail").classList.add("open");
+}
+document.querySelector("#detail .close").addEventListener("click", () => select(null));
+
+/* ---------- search ---------- */
+const q = $("q"), hits = $("hits");
+q.addEventListener("input", () => {
+  const v = q.value.trim().toLowerCase().replace(/^#/, ""); hits.innerHTML = "";
+  if (v.length < 2) return;
+  nodes.filter(n => n.on && (n.title.toLowerCase().includes(v) ||
+                             n.path.toLowerCase().includes(v) ||
+                             n.tags.includes(v)))
+    .sort((a,b) => b.din - a.din).slice(0, 8)
+    .forEach(n => {
+      const li = document.createElement("li");
+      const d = document.createElement("span"); d.className = "dot";
+      d.style.background = nodeColor(n);
+      const s = document.createElement("span"); s.textContent = n.title;
+      li.append(d, s); li.title = n.path; li.tabIndex = 0;
+      const go = () => { select(n); flyTo(n); hits.innerHTML = ""; };
+      li.addEventListener("click", go);
+      li.addEventListener("keydown", ev => { if (ev.key === "Enter") go(); });
+      hits.appendChild(li); });
+});
+q.addEventListener("keydown", e => {
+  if (e.key === "Enter" && hits.firstChild) hits.firstChild.click();
+  if (e.key === "Escape"){ q.value = ""; hits.innerHTML = ""; q.blur(); }
+});
+addEventListener("keydown", e => {
+  const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+  if (e.key === "/" && !typing){ e.preventDefault(); q.focus(); }
+  else if (e.key === "Escape" && !typing) select(null);
+});
+
+/* ---------- filters, legend, stats ---------- */
+function computeVisibility(markBirths){
+  const st = $("f-stream").checked, ar = $("f-arch").checked, or = $("f-orph").checked;
+  const key = MODES[mode].key;
+  const now = performance.now();
+  for (const n of nodes){
+    const was = n.on;
+    n.on = true;
+    if (!st && n.grp === "stream") n.on = false;
+    if (!ar && (n.status === "archived" || n.path.includes("/archived/") || n.path.startsWith("archived/"))) n.on = false;
+    if (!or && n.deg === 0) n.on = false;
+    if (hiddenGroups.has(mode + ":" + key(n))) n.on = false;
+    if (n.bornD > timeCursor) n.on = false;
+    if (markBirths && n.on && !was) n.popAt = now;
+  }
+  visNodes = nodes.filter(n => n.on);
+  visEdges = edges.filter(e => e.s.on && e.t.on);
+  dirty = true;
+}
+function applyFilters(){
+  computeVisibility(false);
+  if (selected && !selected.on) select(null);
+  alpha = Math.max(alpha, 0.25);
+  legend(); stats();
+}
+["f-stream","f-arch","f-orph"].forEach(id => $(id).addEventListener("change", applyFilters));
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  applyFilters();
+}));
+function refreshFilterRows(){
+  $("row-stream").style.display = nodes.some(n => n.grp === "stream") ? "" : "none";
+  $("row-arch").style.display = nodes.some(n =>
+    n.status === "archived" || n.path.includes("/archived/") || n.path.startsWith("archived/")) ? "" : "none";
+  $("row-orph").style.display = nodes.some(n => n.deg === 0) ? "" : "none";
+}
+function legend(){
+  const m = MODES[mode], el = $("legend"); el.innerHTML = "";
+  const shown = {}, totals = {};
+  for (const n of nodes){
+    const k = m.key(n);
+    totals[k] = (totals[k] || 0) + 1;
+    if (n.on) shown[k] = (shown[k] || 0) + 1;
+  }
+  m.order.forEach(k => {
+    if (!totals[k]) return;
+    const off = hiddenGroups.has(mode + ":" + k);
+    const d = document.createElement("div");
+    d.className = "li" + (off ? " off" : "");
+    d.setAttribute("role", "button"); d.tabIndex = 0;
+    d.setAttribute("aria-pressed", String(!off));
+    const dot = document.createElement("span");
+    dot.className = "dot"; dot.style.background = T.pal[m.color[k]];
+    const lbl = document.createElement("span");
+    lbl.className = "lbl"; lbl.textContent = m.label[k];
+    const num = document.createElement("span");
+    num.className = "n"; num.textContent = shown[k] || 0;
+    d.append(dot, lbl, num);
+    const toggle = () => {
+      const id = mode + ":" + k;
+      hiddenGroups.has(id) ? hiddenGroups.delete(id) : hiddenGroups.add(id);
+      applyFilters();
+    };
+    d.addEventListener("click", toggle);
+    d.addEventListener("keydown", ev => {
+      if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); toggle(); }
+    });
+    el.appendChild(d);
+  });
+}
+function localToday(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function fmtStamp(g){
+  const [d, t] = String(g).split("T");
+  return d === localToday() && t ? t.slice(0, 5) : (d || "");
+}
+function stats(){
+  const el = $("stats"); el.textContent = "";
+  const orph = nodes.filter(n => n.deg === 0).length;
+  const b = document.createElement("b"); b.textContent = visNodes.length;
+  el.append(b, " docs · ");
+  const b2 = document.createElement("b"); b2.textContent = visEdges.length;
+  el.append(b2, " links");
+  if (orph) el.append(` · ${orph} unlinked`);
+  if (META.broken.length){
+    const s = document.createElement("span");
+    s.className = "broken";
+    s.textContent = ` · ${META.broken.length} broken`;
+    s.title = META.broken.slice(0, 12).map(x => `${x[0]} → ${x[1]}`).join("\n") +
+      (META.broken.length > 12 ? `\n… ${META.broken.length - 12} more` : "");
+    el.append(s);
+  }
+  el.append(` · built ${fmtStamp(META.g)}`);
+}
+
+/* ---------- timeline: replay how the wiki grew ---------- */
+let replay = null;                        // {t0} while auto-playing
+const tlRange = $("tl-range"), tlLabel = $("tl-label"), tlPlay = $("tl-play");
+const REPLAY_MS = 18000;
+function setupTimeline(){
+  DATED = nodes.filter(n => isFinite(n.bornD));
+  TMIN = Infinity; TMAX = -Infinity;
+  for (const n of DATED){
+    if (n.bornD < TMIN) TMIN = n.bornD;
+    if (n.bornD > TMAX) TMAX = n.bornD;
+  }
+  const show = DATED.length > 0 && TMAX > TMIN;
+  $("timeline").hidden = !show;
+  if (!show){ timeCursor = Infinity; return; }
+  tlRange.min = TMIN; tlRange.max = TMAX; tlRange.step = 1;
+  if (timeCursor === Infinity) tlRange.value = TMAX;
+  tlSetLabel();
+}
+function tlSetLabel(){
+  if (timeCursor === Infinity || timeCursor >= TMAX){ tlLabel.textContent = "today"; return; }
+  tlLabel.textContent = new Date(timeCursor*DAY)
+    .toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
+}
+function tlApply(markBirths){
+  computeVisibility(markBirths);
+  if (selected && !selected.on) select(null);
+  alpha = Math.max(alpha, 0.28);          // keep the layout adjusting as nodes join
+  stats();                                 // cheap; legend refreshed on stop
+  tlSetLabel();
+}
+function stopReplay(){
+  if (!replay) return;
+  replay = null; tlPlay.textContent = "▶";
+  legend();
+}
+function stepReplay(now){
+  if (!replay) return;
+  const p = Math.min(1, (now - replay.t0)/REPLAY_MS);
+  timeCursor = TMIN + (TMAX - TMIN)*p;
+  tlRange.value = timeCursor;
+  tlApply(true);
+  if (p >= 1){ timeCursor = Infinity; stopReplay(); tlSetLabel(); }
+}
+tlPlay.addEventListener("click", () => {
+  if (replay){ stopReplay(); return; }
+  if (timeCursor === Infinity || timeCursor >= TMAX) timeCursor = TMIN;
+  replay = { t0: performance.now() - (timeCursor - TMIN)/(TMAX - TMIN)*REPLAY_MS };
+  tlPlay.textContent = "⏸";
+  hint.classList.add("fade");
+});
+tlRange.addEventListener("input", () => {
+  stopReplay();
+  timeCursor = +tlRange.value;
+  if (timeCursor >= TMAX) timeCursor = Infinity;
+  tlApply(false); legend();
+});
+
+/* ---------- live refresh (activates when served over http, e.g. --serve) ---------- */
+function startLive(){
+  if (location.protocol !== "http:" && location.protocol !== "https:") return;
+  const el = $("live"); el.hidden = false;
+  let failing = 0;
+  setInterval(async () => {
+    try {
+      const r = await fetch("graph.json", {cache:"no-store"});
+      if (!r.ok) throw new Error(r.status);
+      const g = await r.json();
+      failing = 0; el.classList.remove("stale");
+      if (g.generated !== META.g){
+        applyGraph(g, false);
+        el.classList.add("flash");
+        setTimeout(() => el.classList.remove("flash"), 900);
+      }
+    } catch (e) {
+      if (++failing >= 3) el.classList.add("stale");
+    }
+  }, 2500);
+}
+
+/* ---------- boot ---------- */
+function boot(){
+  readTheme(); resize();
+  applyGraph(RAW, true);
+  seed();
+  // repos without frontmatter get folder colors by default
+  const untyped = nodes.filter(n => n.type === "untyped").length;
+  mode = untyped / Math.max(nodes.length, 1) > 0.5 ? "folder" : "type";
+  document.querySelectorAll(".seg button").forEach(x =>
+    x.setAttribute("aria-pressed", String(x.dataset.mode === mode)));
+  refreshFilterRows();
+  applyFilters();
+  for (let i = 0; i < 220; i++) tick();          // pre-settle: formed, not exploding
+  if (REDUCED){ for (let i = 0; i < 500; i++) tick(); alpha = 0.02; }
+  bornAt = performance.now();
+  setTimeout(() => hint.classList.add("fade"), 7000);
+  startLive();
+  let frame = 0;
+  (function loop(now){
+    frame++;
+    if (alpha > 0.021) tick();
+    stepFlight(now);
+    stepReplay(now);
+    // ambient: hubs breathe at ~20fps when idle (skipped for reduced-motion)
+    if (dirty || (!REDUCED && frame % 3 === 0)){ dirty = false; draw(now); }
+    requestAnimationFrame(loop);
+  })(performance.now());
+}
+new MutationObserver(() => { readTheme(); legend(); dirty = true; })
+  .observe(document.documentElement, { attributes:true, attributeFilter:["data-theme"] });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  readTheme(); legend(); themeBtn(); dirty = true;
+});
+
+/* ---------- theme toggle (persisted; overrides the OS preference) ---------- */
+const isDark = () => {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+};
+function themeBtn(){ $("theme-btn").textContent = isDark() ? "☀" : "☾"; }
+try {
+  const saved = localStorage.getItem("wg-theme");
+  if (saved) document.documentElement.dataset.theme = saved;
+} catch (e) {}
+$("theme-btn").addEventListener("click", () => {
+  const next = isDark() ? "light" : "dark";
+  document.documentElement.dataset.theme = next;   // MutationObserver refreshes the canvas
+  try { localStorage.setItem("wg-theme", next); } catch (e) {}
+  themeBtn();
+});
+themeBtn();
+boot();
+</script>

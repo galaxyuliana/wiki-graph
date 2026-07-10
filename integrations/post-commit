@@ -1,0 +1,14 @@
+#!/bin/sh
+# git post-commit hook — rebuild the knowledge graph after every commit.
+# Works with any editor, any agent, or no agent at all.
+#
+# Install (from your wiki repo root, with wiki-graph cloned at ~/tools/wiki-graph):
+#   cp ~/tools/wiki-graph/integrations/post-commit .git/hooks/post-commit
+#   chmod +x .git/hooks/post-commit
+#
+# Only rebuilds when the commit touched markdown files.
+
+if git diff-tree --no-commit-id --name-only -r HEAD | grep -qiE '\.(md|markdown)$'; then
+  python3 ~/tools/wiki-graph/build.py "$(git rev-parse --show-toplevel)" --quiet 2>/dev/null &
+fi
+exit 0

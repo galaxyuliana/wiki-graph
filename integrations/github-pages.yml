@@ -1,0 +1,50 @@
+# Publish your wiki's knowledge graph to GitHub Pages — always fresh.
+#
+# Copy this file to .github/workflows/wiki-graph.yml in YOUR wiki/docs repo,
+# then enable Pages (repo Settings → Pages → Source: GitHub Actions).
+# The graph redeploys on every push and refreshes daily so the git-history
+# timeline stays current. Anyone with the URL gets the interactive graph.
+
+name: wiki-graph
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * *"   # daily refresh (optional — delete if not wanted)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so the timeline replay works
+      - name: Get wiki-graph
+        run: git clone --depth 1 https://github.com/galaxyuliana/wiki-graph /tmp/wiki-graph
+      - name: Build graph
+        run: |
+          python3 /tmp/wiki-graph/build.py "$PWD" "$PWD/_site"
+          cp _site/wiki-graph.html _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

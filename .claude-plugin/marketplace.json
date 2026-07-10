@@ -1,0 +1,17 @@
+{
+  "name": "wiki-graph",
+  "owner": {
+    "name": "galaxyuliana"
+  },
+  "metadata": {
+    "description": "Living knowledge graphs for markdown wikis and docs repos — interactive, self-contained, agent-readable.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "wiki-graph",
+      "source": "./",
+      "description": "See your markdown docs as a living knowledge graph — one self-contained HTML file, auto-updated as you edit, plus agent-readable graph.json."
+    }
+  ]
+}
